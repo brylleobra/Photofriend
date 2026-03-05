@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs cat:*)",
+      "Bash(./gradlew test:*)",
+      "Bash(./gradlew compileDebugKotlin:*)"
+    ]
+  }
+}
