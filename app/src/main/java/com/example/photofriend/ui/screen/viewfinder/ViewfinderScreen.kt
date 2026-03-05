@@ -57,6 +57,7 @@ fun ViewfinderScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val cameraModel by viewModel.cameraModel.collectAsStateWithLifecycle()
+    val effectParams by viewModel.effectParams.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var cameraPermissionGranted by remember {
@@ -135,7 +136,8 @@ fun ViewfinderScreen(
             if (cameraPermissionGranted) {
                 CameraPreview(
                     cameraManager = viewModel.cameraManager,
-                    modifier = Modifier.fillMaxSize()
+                    effectParams  = effectParams,
+                    modifier      = Modifier.fillMaxSize()
                 )
             } else {
                 Column(

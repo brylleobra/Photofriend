@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,10 +25,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,7 +51,9 @@ fun CameraSettingsScreen(
     onBack: () -> Unit,
     viewModel: CameraSettingsViewModel = hiltViewModel()
 ) {
-    val settingsState by viewModel.getSettingsFlow(cameraId).collectAsStateWithLifecycle()
+    LaunchedEffect(cameraId) { viewModel.init(cameraId) }
+    val settingsState by viewModel.uiState.collectAsStateWithLifecycle()
+    val hasPendingChanges by viewModel.hasPendingChanges.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -69,6 +74,20 @@ fun CameraSettingsScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
+        },
+        bottomBar = {
+            if (hasPendingChanges) {
+                Surface(shadowElevation = 8.dp) {
+                    Button(
+                        onClick = viewModel::applyChanges,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Text("Apply")
+                    }
+                }
+            }
         }
     ) { paddingValues ->
         when (val state = settingsState) {
@@ -104,7 +123,7 @@ fun CameraSettingsScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues),
-                    contentPadding = PaddingValues(bottom = 24.dp)
+                    contentPadding = PaddingValues(bottom = if (hasPendingChanges) 0.dp else 24.dp)
                 ) {
                     categoryOrder.forEach { category ->
                         val settings = state.settingsByCategory[category] ?: return@forEach
