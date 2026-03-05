@@ -1,16 +1,14 @@
 package com.example.photofriend.data.remote.api
 
-import com.example.photofriend.data.remote.dto.GeminiRequestDto
-import com.example.photofriend.data.remote.dto.GeminiResponseDto
+import com.example.photofriend.data.remote.dto.OllamaChatRequest
+import com.example.photofriend.data.remote.dto.OllamaChatResponse
 import retrofit2.http.Body
 import retrofit2.http.POST
-import retrofit2.http.Query
 
-interface GeminiApiService {
+interface OllamaApiService {
 
-    @POST("v1beta/models/gemini-2.0-flash:generateContent")
-    suspend fun analyzeScene(
-        @Query("key") apiKey: String,
-        @Body request: GeminiRequestDto
-    ): GeminiResponseDto
+    @POST("api/chat")
+    suspend fun chat(
+        @Body request: OllamaChatRequest
+    ): OllamaChatResponse
 }

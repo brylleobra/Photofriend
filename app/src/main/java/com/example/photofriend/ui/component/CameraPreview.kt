@@ -1,5 +1,8 @@
 package com.example.photofriend.ui.component
 
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
+import android.view.View
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
@@ -14,10 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.photofriend.camera.CameraManager
@@ -32,9 +32,6 @@ fun CameraPreview(
     modifier: Modifier = Modifier
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val colorMatrix = remember(effectParams.colorMatrixValues) {
-        ColorMatrix(effectParams.colorMatrixValues)
-    }
 
     Box(modifier = modifier) {
         AndroidView(
@@ -44,11 +41,17 @@ fun CameraPreview(
                     cameraManager.bindToLifecycle(lifecycleOwner, this)
                 }
             },
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    colorFilter = ColorFilter.colorMatrix(colorMatrix)
+            update = { view ->
+                // Apply colour matrix via the View hardware layer — works on all
+                // API levels and correctly filters TextureView content.
+                val paint = Paint().apply {
+                    colorFilter = ColorMatrixColorFilter(
+                        android.graphics.ColorMatrix(effectParams.colorMatrixValues)
+                    )
                 }
+                view.setLayerType(View.LAYER_TYPE_HARDWARE, paint)
+            },
+            modifier = Modifier.fillMaxSize()
         )
 
         if (effectParams.grainAmount > 0f) {

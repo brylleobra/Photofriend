@@ -7,13 +7,13 @@ data class ViewfinderEffectParams(
     val grainSizePx: Float = 1.5f  // radius in dp-pixels
 ) {
     companion object {
-        val NONE = ViewfinderEffectParams()
         private val IDENTITY = floatArrayOf(
             1f, 0f, 0f, 0f, 0f,
             0f, 1f, 0f, 0f, 0f,
             0f, 0f, 1f, 0f, 0f,
             0f, 0f, 0f, 1f, 0f
         )
+        val NONE = ViewfinderEffectParams()
     }
 
     // FloatArray requires manual equals/hashCode to satisfy data class contract.
