@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.photofriend.ui.screen.aisuggestion.AISuggestionScreen
 import com.example.photofriend.ui.screen.cameraselect.CameraSelectScreen
+import com.example.photofriend.ui.screen.recipedetail.RecipeDetailScreen
 import com.example.photofriend.ui.screen.recipes.RecipesScreen
 import com.example.photofriend.ui.screen.settings.CameraSettingsScreen
 import com.example.photofriend.ui.screen.viewfinder.ViewfinderScreen
@@ -66,6 +67,13 @@ fun NavGraph(navController: NavHostController) {
 
         composable(Screen.Recipes.route) {
             RecipesScreen(
+                onBack = { navController.popBackStack() },
+                onRecipeClick = { navController.navigate(Screen.RecipeDetail.route) }
+            )
+        }
+
+        composable(Screen.RecipeDetail.route) {
+            RecipeDetailScreen(
                 onBack = { navController.popBackStack() }
             )
         }

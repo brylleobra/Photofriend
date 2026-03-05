@@ -3,14 +3,17 @@ package com.example.photofriend.data.repository
 import android.graphics.Bitmap
 import android.util.Base64
 import com.example.photofriend.BuildConfig
-import com.example.photofriend.data.remote.api.ClaudeApiService
-import com.example.photofriend.data.remote.dto.ClaudeContentDto
-import com.example.photofriend.data.remote.dto.ClaudeImageSourceDto
-import com.example.photofriend.data.remote.dto.ClaudeMessageDto
-import com.example.photofriend.data.remote.dto.ClaudeRequestDto
+import com.example.photofriend.data.remote.api.GeminiApiService
+import com.example.photofriend.data.remote.dto.GeminiContentDto
+import com.example.photofriend.data.remote.dto.GeminiGenerationConfigDto
+import com.example.photofriend.data.remote.dto.GeminiInlineDataDto
+import com.example.photofriend.data.remote.dto.GeminiPartDto
+import com.example.photofriend.data.remote.dto.GeminiRequestDto
+import com.example.photofriend.data.remote.dto.GeminiSystemInstructionDto
 import com.example.photofriend.domain.model.AISuggestion
 import com.example.photofriend.domain.model.CameraModel
 import com.example.photofriend.domain.model.CameraSetting
+import com.example.photofriend.di.SettingsStore
 import com.example.photofriend.domain.repository.AIRepository
 import com.example.photofriend.domain.repository.CameraRepository
 import com.google.gson.Gson
@@ -22,44 +25,54 @@ import javax.inject.Singleton
 
 @Singleton
 class AIRepositoryImpl @Inject constructor(
-    private val claudeApiService: ClaudeApiService,
-    private val cameraRepository: CameraRepository
+    private val geminiApiService: GeminiApiService,
+    private val cameraRepository: CameraRepository,
+    private val settingsStore: SettingsStore
 ) : AIRepository {
 
     private val gson = Gson()
 
     override suspend fun analyzeScene(bitmap: Bitmap, cameraModel: CameraModel): AISuggestion {
         val settings = cameraRepository.getCameraSettings(cameraModel.id).first()
+        val userSelections = settingsStore.getValuesSnapshot(cameraModel.id)
         val base64Image = bitmapToBase64(bitmap)
 
-        val request = ClaudeRequestDto(
-            model = "claude-opus-4-6",
-            maxTokens = 1024,
-            system = buildSystemPrompt(cameraModel, settings),
-            messages = listOf(
-                ClaudeMessageDto(
-                    role = "user",
-                    content = listOf(
-                        ClaudeContentDto(
-                            type = "image",
-                            source = ClaudeImageSourceDto(data = base64Image)
+        val request = GeminiRequestDto(
+            systemInstruction = GeminiSystemInstructionDto(
+                parts = listOf(GeminiPartDto(text = buildSystemPrompt(cameraModel, settings, userSelections)))
+            ),
+            contents = listOf(
+                GeminiContentDto(
+                    parts = listOf(
+                        GeminiPartDto(
+                            inlineData = GeminiInlineDataDto(
+                                mimeType = "image/jpeg",
+                                data = base64Image
+                            )
                         ),
-                        ClaudeContentDto(
-                            type = "text",
-                            text = buildUserPrompt(cameraModel)
-                        )
+                        GeminiPartDto(text = buildUserPrompt(cameraModel))
                     )
                 )
+            ),
+            generationConfig = GeminiGenerationConfigDto(
+                temperature = 0.4f,
+                maxOutputTokens = 1024,
+                responseMimeType = "application/json"
             )
         )
 
-        val response = claudeApiService.analyzeScene(
-            apiKey = BuildConfig.CLAUDE_API_KEY,
+        val response = geminiApiService.analyzeScene(
+            apiKey = BuildConfig.GEMINI_API_KEY,
             request = request
         )
 
-        val responseText = response.content.firstOrNull { it.type == "text" }?.text
-            ?: throw Exception("No text response from Claude API")
+        val responseText = response.candidates
+            ?.firstOrNull()
+            ?.content
+            ?.parts
+            ?.firstOrNull()
+            ?.text
+            ?: throw Exception("No text response from Gemini API")
 
         return parseAISuggestion(responseText, cameraModel.id)
     }
@@ -79,18 +92,31 @@ class AIRepositoryImpl @Inject constructor(
         return Bitmap.createScaledBitmap(bitmap, (width * scale).toInt(), (height * scale).toInt(), true)
     }
 
-    private fun buildSystemPrompt(camera: CameraModel, settings: List<CameraSetting>): String {
+    private fun buildSystemPrompt(
+        camera: CameraModel,
+        settings: List<CameraSetting>,
+        userSelections: Map<String, String>
+    ): String {
         val settingsList = settings.joinToString("\n") { s ->
-            "- ${s.name}: [${s.options.joinToString(", ")}] (default: ${s.defaultValue})"
+            val current = userSelections[s.id] ?: s.defaultValue
+            "- ${s.name}: [${s.options.joinToString(", ")}] (currently: $current)"
         }
-        return """You are an expert photography assistant specializing in Fujifilm cameras and in-camera JPEG film simulation recipes.
+        val hasUserSelections = userSelections.isNotEmpty()
+        val selectionNote = if (hasUserSelections)
+            "The user's current settings are shown above. Factor these preferences into your recipe — keep settings the user has customised unless the scene strongly calls for a change, and explain any overrides in your reasoning."
+        else
+            "Suggest a complete recipe optimised for this scene."
+
+        return """You are an expert photography assistant specialising in Fujifilm cameras and in-camera JPEG film simulation recipes.
 
 The user has a ${camera.brand} ${camera.name} (${camera.sensorSize} sensor, ${camera.megapixels}MP).
 
-Available camera settings:
+Camera settings with valid options and the user's current selections:
 $settingsList
 
-Analyze the scene in the photo and respond ONLY with a valid JSON object — no markdown, no explanation outside the JSON:
+$selectionNote
+
+Respond ONLY with a valid JSON object — no markdown, no text outside the JSON:
 {
   "sceneDescription": "one sentence describing the scene and its mood",
   "suggestedSettings": {
@@ -98,23 +124,26 @@ Analyze the scene in the photo and respond ONLY with a valid JSON object — no 
     "Grain Effect": "value from options above",
     "Color Chrome Effect": "value from options above",
     "White Balance": "value from options above",
+    "WB Shift R": "integer from -9 to +9",
+    "WB Shift B": "integer from -9 to +9",
     "Highlight Tone": "value from options above",
     "Shadow Tone": "value from options above",
     "Color": "value from options above",
     "Sharpness": "value from options above",
     "Noise Reduction": "value from options above",
+    "Clarity": "value from options above (omit if camera does not support it)",
     "Dynamic Range": "value from options above",
     "ISO": "value from options above"
   },
   "filmSimulationRecipeName": "a creative name for this recipe",
-  "reasoning": "2-3 sentences explaining why these settings suit this scene"
+  "reasoning": "2-3 sentences explaining why these settings suit this scene, noting any departures from the user's current selections"
 }
 
-Only use values that appear in the options lists above.""".trimIndent()
+Use values from the options lists for all settings. WB Shift R and WB Shift B are integers (e.g. -2, 0, +3).""".trimIndent()
     }
 
     private fun buildUserPrompt(camera: CameraModel): String =
-        "Please analyze this scene and suggest the optimal ${camera.brand} ${camera.name} in-camera settings and a film simulation recipe to capture it beautifully."
+        "Analyse this scene and suggest the optimal ${camera.brand} ${camera.name} in-camera settings and film simulation recipe to capture it beautifully. Respond only with the JSON object."
 
     private fun parseAISuggestion(text: String, cameraId: String): AISuggestion {
         // Strip markdown code fences if present

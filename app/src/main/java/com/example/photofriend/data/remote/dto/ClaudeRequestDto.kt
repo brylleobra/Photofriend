@@ -2,26 +2,32 @@ package com.example.photofriend.data.remote.dto
 
 import com.google.gson.annotations.SerializedName
 
-data class ClaudeRequestDto(
-    val model: String,
-    @SerializedName("max_tokens") val maxTokens: Int,
-    val system: String,
-    val messages: List<ClaudeMessageDto>
+data class GeminiRequestDto(
+    val contents: List<GeminiContentDto>,
+    val systemInstruction: GeminiSystemInstructionDto? = null,
+    val generationConfig: GeminiGenerationConfigDto? = null
 )
 
-data class ClaudeMessageDto(
-    val role: String,
-    val content: List<ClaudeContentDto>
+data class GeminiContentDto(
+    val parts: List<GeminiPartDto>
 )
 
-data class ClaudeContentDto(
-    val type: String,
+data class GeminiPartDto(
     val text: String? = null,
-    val source: ClaudeImageSourceDto? = null
+    val inlineData: GeminiInlineDataDto? = null
 )
 
-data class ClaudeImageSourceDto(
-    val type: String = "base64",
-    @SerializedName("media_type") val mediaType: String = "image/jpeg",
+data class GeminiInlineDataDto(
+    val mimeType: String,
     val data: String
+)
+
+data class GeminiSystemInstructionDto(
+    val parts: List<GeminiPartDto>
+)
+
+data class GeminiGenerationConfigDto(
+    val temperature: Float = 0.4f,
+    @SerializedName("maxOutputTokens") val maxOutputTokens: Int = 1024,
+    val responseMimeType: String = "application/json"
 )

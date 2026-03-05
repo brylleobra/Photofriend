@@ -16,6 +16,7 @@ data class FilmSimulationRecipe(
     val color: Int,
     val sharpness: Int,
     val noiseReduction: Int,
+    val clarity: Int = 0,
     val isoMin: Int,
     val isoMax: Int,
     val tags: List<String>,

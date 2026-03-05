@@ -1,18 +1,16 @@
 package com.example.photofriend.data.remote.api
 
-import com.example.photofriend.data.remote.dto.ClaudeRequestDto
-import com.example.photofriend.data.remote.dto.ClaudeResponseDto
+import com.example.photofriend.data.remote.dto.GeminiRequestDto
+import com.example.photofriend.data.remote.dto.GeminiResponseDto
 import retrofit2.http.Body
-import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Query
 
-interface ClaudeApiService {
+interface GeminiApiService {
 
-    @POST("v1/messages")
+    @POST("v1beta/models/gemini-2.0-flash:generateContent")
     suspend fun analyzeScene(
-        @Header("x-api-key") apiKey: String,
-        @Header("anthropic-version") version: String = "2023-06-01",
-        @Header("Content-Type") contentType: String = "application/json",
-        @Body request: ClaudeRequestDto
-    ): ClaudeResponseDto
+        @Query("key") apiKey: String,
+        @Body request: GeminiRequestDto
+    ): GeminiResponseDto
 }

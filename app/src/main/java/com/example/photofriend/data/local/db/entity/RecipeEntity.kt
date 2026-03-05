@@ -20,6 +20,7 @@ data class RecipeEntity(
     val color: Int,
     val sharpness: Int,
     val noiseReduction: Int,
+    val clarity: Int = 0,
     val isoMin: Int,
     val isoMax: Int,
     val tags: String,         // comma-separated

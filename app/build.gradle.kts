@@ -14,11 +14,11 @@ android {
         applicationId = "com.example.photofriend"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "CLAUDE_API_KEY", "\"${project.findProperty("claude.api.key") ?: ""}\"" )
+        buildConfigField("String", "GEMINI_API_KEY", "\"${project.findProperty("gemini.api.key") ?: ""}\"" )
     }
 
     buildTypes {
@@ -77,6 +77,9 @@ dependencies {
     implementation(libs.camerax.camera2)
     implementation(libs.camerax.lifecycle)
     implementation(libs.camerax.view)
+
+    // DataStore
+    implementation(libs.datastore.preferences)
 
     // Retrofit + OkHttp
     implementation(libs.retrofit.core)

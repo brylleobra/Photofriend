@@ -63,17 +63,22 @@ class AISuggestionViewModel @Inject constructor(
             colorChrome = s["Color Chrome Effect"] ?: "Off",
             colorChromeBlue = s["Color Chrome FX Blue"] ?: "Off",
             whiteBalance = s["White Balance"] ?: "Auto",
-            wbShiftR = 0,
-            wbShiftB = 0,
-            highlights = s["Highlight Tone"]?.toIntOrNull() ?: 0,
-            shadows = s["Shadow Tone"]?.toIntOrNull() ?: 0,
-            color = s["Color"]?.toIntOrNull() ?: 0,
-            sharpness = s["Sharpness"]?.toIntOrNull() ?: 0,
-            noiseReduction = s["Noise Reduction"]?.toIntOrNull() ?: 0,
+            wbShiftR = s["WB Shift R"].toSignedInt(),
+            wbShiftB = s["WB Shift B"].toSignedInt(),
+            highlights = s["Highlight Tone"].toSignedInt(),
+            shadows = s["Shadow Tone"].toSignedInt(),
+            color = s["Color"].toSignedInt(),
+            sharpness = s["Sharpness"].toSignedInt(),
+            noiseReduction = s["Noise Reduction"].toSignedInt(),
+            clarity = s["Clarity"].toSignedInt(),
             isoMin = 160,
             isoMax = 3200,
             tags = listOf("ai-generated"),
             isUserSaved = true
         )
     }
+
+    // Handles values like "+1", "-2", "0" that Kotlin's toIntOrNull() rejects for "+"
+    private fun String?.toSignedInt(): Int =
+        this?.removePrefix("+")?.trim()?.toIntOrNull() ?: 0
 }
