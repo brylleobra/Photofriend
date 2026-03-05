@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -92,6 +93,12 @@ fun ViewfinderScreen(
                 viewModel.resetState()
             }
             else -> Unit
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.photoSavedEvent.collect { saved ->
+            snackbarHostState.showSnackbar(if (saved) "Photo saved to gallery!" else "Failed to save photo")
         }
     }
 
@@ -178,21 +185,31 @@ fun ViewfinderScreen(
                         fontWeight = FontWeight.Medium
                     )
                 } else {
+                    OutlinedButton(
+                        onClick = { onNavigateToSettings(cameraId) }
+                    ) {
+                        Text("Settings")
+                    }
+                    IconButton(
+                        onClick = viewModel::captureAndSave,
+                        enabled = cameraPermissionGranted
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Camera,
+                            contentDescription = "Take Photo",
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
                     Button(
                         onClick = viewModel::analyzeScene,
-                        enabled = cameraPermissionGranted && uiState !is ViewfinderUiState.Analyzing
+                        enabled = cameraPermissionGranted
                     ) {
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = null,
                             modifier = Modifier.padding(end = 6.dp)
                         )
-                        Text("Analyze Scene")
-                    }
-                    OutlinedButton(
-                        onClick = { onNavigateToSettings(cameraId) }
-                    ) {
-                        Text("Settings")
+                        Text("Analyze")
                     }
                 }
             }

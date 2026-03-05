@@ -27,10 +27,10 @@ object FilmLook {
         // 1. Film simulation base look
         m.postConcat(filmSimMatrix(filmSim))
 
-        // 2. User saturation (Color setting): each step ≈ ±8 %
-        if (color != 0) m.postConcat(satMatrix(1f + color * 0.08f))
+        // 2. User saturation (Color setting): each step ≈ ±12 %
+        if (color != 0) m.postConcat(satMatrix(1f + color * 0.12f))
 
-        // 3. Tone adjustments
+        // 3. Tone adjustments (each step ≈ ±8 brightness + contrast boost)
         if (highlights != 0 || shadows != 0) m.postConcat(toneMatrix(highlights, shadows))
 
         // 4. White balance tint (colour-temperature presets + Kelvin values)
@@ -48,8 +48,8 @@ object FilmLook {
             m.postConcat(channelScaleMatrix(r = 1f, g = 1f, b = 1f + lift))
         }
 
-        // 7. Clarity — approximate as mild mid-tone contrast
-        if (clarity != 0) m.postConcat(contrastMatrix(1f + clarity * 0.014f))
+        // 7. Clarity — mid-tone contrast; each step ≈ ±2.5 % contrast
+        if (clarity != 0) m.postConcat(contrastMatrix(1f + clarity * 0.025f))
 
         val (grainAmount, grainSizePx) = grainParams(grain)
         return ViewfinderEffectParams(
@@ -151,8 +151,10 @@ object FilmLook {
      * Uses a linear brightness + contrast model (good enough for live preview).
      */
     private fun toneMatrix(highlights: Int, shadows: Int): ColorMatrix {
-        val brightness = shadows * 4f + highlights * 2f
-        val contrast   = 1f + (highlights - shadows) * 0.022f
+        // highlights: pushes bright areas up/down (each step ≈ ±5 brightness, ±3% contrast)
+        // shadows: lifts/crushes dark areas (each step ≈ ±8 brightness offset)
+        val brightness = shadows * 8f + highlights * 5f
+        val contrast   = 1f + (highlights - shadows) * 0.03f
         val offset     = 128f * (1f - contrast) + brightness
         return ColorMatrix(floatArrayOf(
             contrast, 0f, 0f, 0f, offset,

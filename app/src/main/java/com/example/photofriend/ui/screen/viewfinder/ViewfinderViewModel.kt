@@ -1,7 +1,9 @@
 package com.example.photofriend.ui.screen.viewfinder
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.photofriend.camera.BitmapUtils
 import com.example.photofriend.camera.CameraManager
 import com.example.photofriend.camera.FilmLook
 import com.example.photofriend.camera.ViewfinderEffectParams
@@ -12,9 +14,13 @@ import com.example.photofriend.domain.repository.CameraRepository
 import com.example.photofriend.domain.usecase.AnalyzeSceneUseCase
 import com.example.photofriend.domain.usecase.GetCameraSettingsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
@@ -34,6 +40,7 @@ sealed interface ViewfinderUiState {
 
 @HiltViewModel
 class ViewfinderViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     val cameraManager: CameraManager,
     private val analyzeSceneUseCase: AnalyzeSceneUseCase,
     private val cameraRepository: CameraRepository,
@@ -44,6 +51,9 @@ class ViewfinderViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<ViewfinderUiState>(ViewfinderUiState.Idle)
     val uiState: StateFlow<ViewfinderUiState> = _uiState.asStateFlow()
+
+    private val _photoSavedEvent = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
+    val photoSavedEvent: SharedFlow<Boolean> = _photoSavedEvent.asSharedFlow()
 
     private val _cameraId = MutableStateFlow("")
 
@@ -113,5 +123,19 @@ class ViewfinderViewModel @Inject constructor(
 
     fun resetState() {
         _uiState.value = ViewfinderUiState.Idle
+    }
+
+    fun captureAndSave() {
+        viewModelScope.launch {
+            try {
+                val raw = cameraManager.captureFrame()
+                val processed = BitmapUtils.applyColorMatrix(raw, effectParams.value.colorMatrixValues)
+                val filename = "photofriend_${System.currentTimeMillis()}"
+                val saved = BitmapUtils.saveToGallery(context, processed, filename)
+                _photoSavedEvent.tryEmit(saved)
+            } catch (e: Exception) {
+                _uiState.value = ViewfinderUiState.Error(e.message ?: "Failed to capture photo")
+            }
+        }
     }
 }

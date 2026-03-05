@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material3.Button
@@ -51,12 +52,20 @@ fun AISuggestionScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val saveEvent by viewModel.saveEvent.collectAsStateWithLifecycle()
+    val applyEvent by viewModel.applyEvent.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(saveEvent) {
         if (saveEvent) {
             snackbarHostState.showSnackbar("Recipe saved!")
             viewModel.clearSaveEvent()
+        }
+    }
+
+    LaunchedEffect(applyEvent) {
+        if (applyEvent) {
+            snackbarHostState.showSnackbar("Settings applied to camera!")
+            viewModel.clearApplyEvent()
         }
     }
 
@@ -109,8 +118,9 @@ fun AISuggestionScreen(
             is AISuggestionUiState.Success -> {
                 SuggestionContent(
                     suggestion = state.suggestion,
-                    onSave = viewModel::saveAsRecipe,
-                    modifier = Modifier
+                    onSave    = viewModel::saveAsRecipe,
+                    onApply   = viewModel::applyToCamera,
+                    modifier  = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
                 )
@@ -123,6 +133,7 @@ fun AISuggestionScreen(
 private fun SuggestionContent(
     suggestion: AISuggestion,
     onSave: () -> Unit,
+    onApply: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -215,6 +226,20 @@ private fun SuggestionContent(
 
         item {
             Button(
+                onClick = onApply,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Text("Apply to Camera Settings")
+            }
+        }
+
+        item {
+            OutlinedButton(
                 onClick = onSave,
                 modifier = Modifier.fillMaxWidth()
             ) {

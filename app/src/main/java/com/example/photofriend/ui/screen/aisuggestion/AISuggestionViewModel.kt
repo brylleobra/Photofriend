@@ -3,14 +3,17 @@ package com.example.photofriend.ui.screen.aisuggestion
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.photofriend.di.AISuggestionStore
+import com.example.photofriend.di.SettingsStore
 import com.example.photofriend.domain.model.AISuggestion
 import com.example.photofriend.domain.model.FilmSimulationRecipe
+import com.example.photofriend.domain.usecase.GetCameraSettingsUseCase
 import com.example.photofriend.domain.usecase.SaveRecipeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -25,7 +28,9 @@ sealed interface AISuggestionUiState {
 @HiltViewModel
 class AISuggestionViewModel @Inject constructor(
     private val suggestionStore: AISuggestionStore,
-    private val saveRecipeUseCase: SaveRecipeUseCase
+    private val saveRecipeUseCase: SaveRecipeUseCase,
+    private val getCameraSettingsUseCase: GetCameraSettingsUseCase,
+    private val settingsStore: SettingsStore
 ) : ViewModel() {
 
     val uiState: StateFlow<AISuggestionUiState> =
@@ -39,6 +44,9 @@ class AISuggestionViewModel @Inject constructor(
     private val _saveEvent = MutableStateFlow(false)
     val saveEvent: StateFlow<Boolean> = _saveEvent.asStateFlow()
 
+    private val _applyEvent = MutableStateFlow(false)
+    val applyEvent: StateFlow<Boolean> = _applyEvent.asStateFlow()
+
     fun saveAsRecipe() {
         val current = suggestionStore.suggestion.value ?: return
         viewModelScope.launch {
@@ -50,6 +58,24 @@ class AISuggestionViewModel @Inject constructor(
 
     fun clearSaveEvent() {
         _saveEvent.value = false
+    }
+
+    fun applyToCamera() {
+        val suggestion = suggestionStore.suggestion.value ?: return
+        viewModelScope.launch {
+            val settings = getCameraSettingsUseCase(suggestion.cameraId).first()
+            val nameToId = settings.associate { it.name to it.id }
+            suggestion.suggestedSettings.forEach { (name, value) ->
+                nameToId[name]?.let { id ->
+                    settingsStore.setValue(suggestion.cameraId, id, value)
+                }
+            }
+            _applyEvent.value = true
+        }
+    }
+
+    fun clearApplyEvent() {
+        _applyEvent.value = false
     }
 
     private fun buildRecipeFromSuggestion(suggestion: AISuggestion): FilmSimulationRecipe {
