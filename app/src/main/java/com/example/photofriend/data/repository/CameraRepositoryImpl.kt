@@ -52,13 +52,13 @@ class CameraRepositoryImpl @Inject constructor(
     }
 
     private suspend fun seedCamerasIfEmpty() {
-        if (cameraModelDao.count() == 0) {
-            cameraModelDao.insertAll(CameraSeeds.cameras)
-        }
+        cameraModelDao.insertAll(CameraSeeds.cameras)
     }
 
     private suspend fun seedSettingsIfEmpty(cameraId: String) {
-        if (cameraId == "fujifilm_xt30iii" && cameraSettingDao.countForCamera(cameraId) == 0) {
+        // IGNORE conflict strategy means existing rows are skipped — safe to call every time.
+        // This ensures newly added settings (e.g. Aperture) appear even on existing installs.
+        if (cameraId == "fujifilm_xt30iii") {
             cameraSettingDao.insertAll(CameraSeeds.xt30iiiSettings)
         }
     }

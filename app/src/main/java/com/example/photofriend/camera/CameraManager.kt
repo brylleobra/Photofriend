@@ -2,15 +2,18 @@ package com.example.photofriend.camera
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.hardware.camera2.CaptureRequest
 import androidx.camera.camera2.interop.Camera2CameraControl
 import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
+import androidx.camera.core.MeteringPointFactory
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -18,6 +21,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -89,6 +93,34 @@ class CameraManager @Inject constructor(
         applyPendingHardwareSettings()
     }
 
+    /**
+     * Sets the AF/AE metering point at the tapped position.
+     * Auto-cancels focus lock after 3 seconds.
+     */
+    fun focusAt(factory: MeteringPointFactory, x: Float, y: Float) {
+        val point = factory.createPoint(x, y)
+        val action = FocusMeteringAction.Builder(
+            point,
+            FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE
+        )
+            .setAutoCancelDuration(3, TimeUnit.SECONDS)
+            .build()
+        camera?.cameraControl?.startFocusAndMetering(action)
+    }
+
+    /**
+     * Adjusts the camera's exposure compensation to simulate the brightness
+     * change of a different aperture vs the phone's native aperture.
+     *
+     * @param evOffset number of stops to offset (negative = darker / narrower simulated aperture)
+     */
+    fun setExposureOffset(evOffset: Int) {
+        val cam = camera ?: return
+        val range = cam.cameraInfo.exposureState.exposureCompensationRange
+        val clamped = evOffset.coerceIn(range.lower, range.upper)
+        cam.cameraControl.setExposureCompensationIndex(clamped)
+    }
+
     @OptIn(ExperimentalCamera2Interop::class)
     private fun applyPendingHardwareSettings() {
         val cam = camera ?: return
@@ -121,8 +153,13 @@ class CameraManager @Inject constructor(
             mainExecutor,
             object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
-                    val bitmap = image.toBitmap()
+                    val rotation = image.imageInfo.rotationDegrees
+                    val raw = image.toBitmap()
                     image.close()
+                    val bitmap = if (rotation != 0) {
+                        val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+                        Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, matrix, true)
+                    } else raw
                     if (cont.isActive) cont.resume(bitmap)
                 }
 

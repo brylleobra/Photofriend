@@ -21,6 +21,7 @@ object FilmLook {
         val shadows    = settings["Shadow Tone"].toSignedInt()
         val color      = settings["Color"].toSignedInt()      // -4..+4 saturation
         val clarity    = settings["Clarity"].toSignedInt()    // -5..+5
+        val aperture   = settings["Aperture"]            ?: "Native"
 
         val m = ColorMatrix()
 
@@ -52,10 +53,13 @@ object FilmLook {
         if (clarity != 0) m.postConcat(contrastMatrix(1f + clarity * 0.025f))
 
         val (grainAmount, grainSizePx) = grainParams(grain)
+        val (vignetteStrength, evOffset) = apertureParams(aperture)
         return ViewfinderEffectParams(
             colorMatrixValues = m.array.clone(),
             grainAmount       = grainAmount,
-            grainSizePx       = grainSizePx
+            grainSizePx       = grainSizePx,
+            vignetteStrength  = vignetteStrength,
+            exposureEvOffset  = evOffset
         )
     }
 
@@ -226,6 +230,31 @@ object FilmLook {
         "Strong Small" -> Pair(0.13f,  1.2f)
         "Strong Large" -> Pair(0.13f,  2.8f)
         else           -> Pair(0f, 0f)
+    }
+
+    // ── Aperture simulation ───────────────────────────────────────────────────
+
+    /**
+     * Maps a simulated f-stop to (vignetteStrength, evOffset).
+     *
+     * Phone native aperture is treated as f/2.0 (common on most devices).
+     * Each full stop of difference = 1 EV.
+     * Wider apertures produce stronger optical vignetting.
+     *
+     * evOffset is negative for narrower-than-native (less light), positive for wider.
+     */
+    private fun apertureParams(aperture: String): Pair<Float, Int> = when (aperture) {
+        "f/1.0" -> Pair(0.55f, +2)  // 2 stops wider than f/2 → much more vignette, brighter
+        "f/1.4" -> Pair(0.45f, +1)
+        "f/1.8" -> Pair(0.30f,  0)  // close to native on most phones
+        "f/2.0" -> Pair(0.22f,  0)  // native reference
+        "f/2.8" -> Pair(0.12f, -1)
+        "f/4"   -> Pair(0.06f, -2)
+        "f/5.6" -> Pair(0.03f, -3)
+        "f/8"   -> Pair(0.02f, -4)
+        "f/11"  -> Pair(0.01f, -5)
+        "f/16"  -> Pair(0.00f, -6)
+        else    -> Pair(0.00f,  0)  // "Native" — no simulation
     }
 
     // ── Utility ──────────────────────────────────────────────────────────────

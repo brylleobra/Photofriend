@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [CameraModelEntity::class, CameraSettingEntity::class, RecipeEntity::class],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 abstract class PhotofriendDatabase : RoomDatabase() {

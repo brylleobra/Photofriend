@@ -93,6 +93,10 @@ object CameraSeeds {
         "-5", "-4", "-3", "-2", "-1", "0", "+1", "+2", "+3", "+4", "+5"
     ).joinToString("|")
 
+    private fun apertureOptions() = listOf(
+        "Native", "f/1.0", "f/1.4", "f/1.8", "f/2.0", "f/2.8", "f/4", "f/5.6", "f/8", "f/11", "f/16"
+    ).joinToString("|")
+
     private fun drOptions() = listOf("Auto", "DR100", "DR200", "DR400").joinToString("|")
 
     private fun isoOptions() = listOf(
@@ -199,6 +203,17 @@ object CameraSeeds {
             description = "Controls mid-tone contrast for perceived sharpness",
             options = clarityOptions(),
             defaultValue = "0"
+        ),
+        CameraSettingEntity(
+            id = "xt30iii_aperture",
+            cameraId = "fujifilm_xt30iii",
+            category = "EXPOSURE",
+            name = "Aperture",
+            description = "Simulates depth-of-field and exposure of a chosen f-stop. " +
+                "Your phone's lens is fixed (≈f/2.0); this adjusts exposure compensation " +
+                "and vignetting to approximate the chosen aperture.",
+            options = apertureOptions(),
+            defaultValue = "Native"
         ),
         CameraSettingEntity(
             id = "xt30iii_dr",

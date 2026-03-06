@@ -97,6 +97,12 @@ class ViewfinderViewModel @Inject constructor(
                 )
             }
         }
+        // Push aperture exposure offset whenever effectParams changes.
+        viewModelScope.launch {
+            effectParams.collect { params ->
+                cameraManager.setExposureOffset(params.exposureEvOffset)
+            }
+        }
     }
 
     fun loadCamera(cameraId: String) {
