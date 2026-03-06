@@ -1,13 +1,17 @@
 package com.example.photofriend
 
 import app.cash.turbine.test
+import com.example.photofriend.di.SettingsStore
 import com.example.photofriend.domain.model.CameraSetting
 import com.example.photofriend.domain.model.SettingCategory
 import com.example.photofriend.domain.usecase.GetCameraSettingsUseCase
 import com.example.photofriend.ui.screen.settings.CameraSettingsUiState
 import com.example.photofriend.ui.screen.settings.CameraSettingsViewModel
+import io.mockk.coEvery
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.Runs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -26,6 +30,7 @@ class CameraSettingsViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var useCase: GetCameraSettingsUseCase
+    private lateinit var settingsStore: SettingsStore
     private lateinit var viewModel: CameraSettingsViewModel
 
     private val filmSimSetting = CameraSetting(
@@ -62,7 +67,10 @@ class CameraSettingsViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         useCase = mockk()
-        viewModel = CameraSettingsViewModel(useCase)
+        settingsStore = mockk()
+        coEvery { settingsStore.setValue(any(), any(), any()) } just Runs
+        coEvery { settingsStore.resetCamera(any()) } just Runs
+        viewModel = CameraSettingsViewModel(useCase, settingsStore)
     }
 
     @After
@@ -71,11 +79,14 @@ class CameraSettingsViewModelTest {
     }
 
     @Test
-    fun `getSettingsFlow emits Success with settings grouped by category`() = runTest {
+    fun `uiState emits Success with settings grouped by category`() = runTest {
         val cameraId = "fujifilm_xt30iii"
         every { useCase(cameraId) } returns flowOf(listOf(filmSimSetting, grainSetting, isoSetting))
+        every { settingsStore.getValuesFlow(cameraId) } returns flowOf(emptyMap())
 
-        viewModel.getSettingsFlow(cameraId).test {
+        viewModel.init(cameraId)
+
+        viewModel.uiState.test {
             testDispatcher.scheduler.advanceUntilIdle()
             val state = expectMostRecentItem()
             assertTrue(state is CameraSettingsUiState.Success)
@@ -90,8 +101,11 @@ class CameraSettingsViewModelTest {
     fun `default values are used before any changes`() = runTest {
         val cameraId = "fujifilm_xt30iii"
         every { useCase(cameraId) } returns flowOf(listOf(filmSimSetting, grainSetting))
+        every { settingsStore.getValuesFlow(cameraId) } returns flowOf(emptyMap())
 
-        viewModel.getSettingsFlow(cameraId).test {
+        viewModel.init(cameraId)
+
+        viewModel.uiState.test {
             testDispatcher.scheduler.advanceUntilIdle()
             val state = expectMostRecentItem()
             if (state is CameraSettingsUiState.Success) {
@@ -103,11 +117,14 @@ class CameraSettingsViewModelTest {
     }
 
     @Test
-    fun `onSettingChanged updates selected value for the setting`() = runTest {
+    fun `onSettingChanged stages pending change visible in uiState`() = runTest {
         val cameraId = "fujifilm_xt30iii"
         every { useCase(cameraId) } returns flowOf(listOf(filmSimSetting, grainSetting))
+        every { settingsStore.getValuesFlow(cameraId) } returns flowOf(emptyMap())
 
-        viewModel.getSettingsFlow(cameraId).test {
+        viewModel.init(cameraId)
+
+        viewModel.uiState.test {
             testDispatcher.scheduler.advanceUntilIdle()
 
             viewModel.onSettingChanged("xt30iii_film_sim", "Velvia/Vivid")
@@ -126,8 +143,11 @@ class CameraSettingsViewModelTest {
     fun `onSettingChanged can update multiple settings independently`() = runTest {
         val cameraId = "fujifilm_xt30iii"
         every { useCase(cameraId) } returns flowOf(listOf(filmSimSetting, grainSetting, isoSetting))
+        every { settingsStore.getValuesFlow(cameraId) } returns flowOf(emptyMap())
 
-        viewModel.getSettingsFlow(cameraId).test {
+        viewModel.init(cameraId)
+
+        viewModel.uiState.test {
             testDispatcher.scheduler.advanceUntilIdle()
 
             viewModel.onSettingChanged("xt30iii_film_sim", "Classic Chrome")
@@ -146,11 +166,14 @@ class CameraSettingsViewModelTest {
     }
 
     @Test
-    fun `resetAll reverts all settings to defaults`() = runTest {
+    fun `resetAll clears pending changes reverting to defaults`() = runTest {
         val cameraId = "fujifilm_xt30iii"
         every { useCase(cameraId) } returns flowOf(listOf(filmSimSetting, grainSetting))
+        every { settingsStore.getValuesFlow(cameraId) } returns flowOf(emptyMap())
 
-        viewModel.getSettingsFlow(cameraId).test {
+        viewModel.init(cameraId)
+
+        viewModel.uiState.test {
             testDispatcher.scheduler.advanceUntilIdle()
 
             viewModel.onSettingChanged("xt30iii_film_sim", "Velvia/Vivid")
@@ -170,15 +193,12 @@ class CameraSettingsViewModelTest {
     }
 
     @Test
-    fun `getSettingsFlow emits Loading initially before data arrives`() = runTest {
-        val cameraId = "fujifilm_xt30iii"
-        every { useCase(cameraId) } returns flowOf(emptyList())
-
-        viewModel.getSettingsFlow(cameraId).test {
+    fun `uiState emits Loading initially before init is called`() = runTest {
+        viewModel.uiState.test {
             val initial = awaitItem()
             assertTrue(
-                "Expected Loading or Success, got $initial",
-                initial is CameraSettingsUiState.Loading || initial is CameraSettingsUiState.Success
+                "Expected Loading before init, got $initial",
+                initial is CameraSettingsUiState.Loading
             )
             cancelAndIgnoreRemainingEvents()
         }
